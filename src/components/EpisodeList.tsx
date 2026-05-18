@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Play, Loader2, FastForward, Server, Subtitles, CheckCircle2, CheckCheck } from "lucide-react";
+import { Play, Loader2, FastForward, Server, Subtitles, Check, CheckCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,8 @@ interface EpisodeCardProps {
   isInProgress: boolean;
   progressPct: number;
   onSelectEpisode: (episode: Episode) => void;
+  onToggleWatched: (episode: Episode, completed: boolean) => void;
+  toggling: boolean;
 }
 
 const EpisodeCard = ({
@@ -47,6 +49,8 @@ const EpisodeCard = ({
   isInProgress,
   progressPct,
   onSelectEpisode,
+  onToggleWatched,
+  toggling,
 }: EpisodeCardProps) => {
   const hasThumbnail = !!episode.thumbnail_url;
   const hasDirectVideo = isDirectVideoUrl(episode.video_url);
@@ -58,20 +62,19 @@ const EpisodeCard = ({
   const hasMultiQuality = episode.quality_360p || episode.quality_480p || episode.quality_720p || episode.quality_1080p;
 
   return (
-    <motion.button
+    <motion.div
       key={episode.id}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      onClick={() => onSelectEpisode(episode)}
-      className={`relative flex items-center gap-3 p-3 rounded-lg transition-all text-left w-full overflow-hidden ${
+      className={`relative flex items-center gap-3 p-3 rounded-lg border transition-all overflow-hidden ${
         isSelected
-          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
+          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30 border-primary"
           : isCompleted
-          ? "bg-green-950/60 hover:bg-green-900/60 border border-green-700/50 text-foreground"
+          ? "bg-primary/10 hover:bg-primary/15 border-primary/40 text-foreground"
           : isInProgress
-          ? "bg-card hover:bg-accent border border-primary/40 text-foreground"
-          : "bg-card hover:bg-accent border border-border text-foreground"
+          ? "bg-card hover:bg-accent border-primary/40 text-foreground"
+          : "bg-card hover:bg-accent border-border text-foreground"
       }`}
     >
       {isInProgress && !isSelected && (
@@ -81,101 +84,121 @@ const EpisodeCard = ({
         />
       )}
 
-      {/* Thumbnail or episode number badge */}
-      {hasThumbnail || showVideoThumb ? (
-        <div className="relative w-16 h-10 rounded-md overflow-hidden flex-shrink-0 bg-black">
-          {hasThumbnail ? (
-            <img
-              src={episode.thumbnail_url!}
-              alt={`${episode.episode_number}. epizód`}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <video
-              src={episode.video_url}
-              muted
-              playsInline
-              preload="metadata"
-              className="w-full h-full object-cover"
-              onLoadedMetadata={(e) => {
-                const vid = e.currentTarget;
-                vid.currentTime = Math.min(30, vid.duration * 0.1);
-              }}
-            />
-          )}
-          {isSelected && (
-            <div className="absolute inset-0 bg-primary/40 flex items-center justify-center">
-              <Play className="h-4 w-4 fill-current text-white" />
+      {/* Clickable area for playing */}
+      <button
+        onClick={() => onSelectEpisode(episode)}
+        className="flex items-center gap-3 flex-1 min-w-0 text-left"
+      >
+        {/* Thumbnail or episode number badge */}
+        {hasThumbnail || showVideoThumb ? (
+          <div className="relative w-16 h-10 rounded-md overflow-hidden flex-shrink-0 bg-black">
+            {hasThumbnail ? (
+              <img
+                src={episode.thumbnail_url!}
+                alt={`${episode.episode_number}. epizód`}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <video
+                src={episode.video_url}
+                muted
+                playsInline
+                preload="metadata"
+                className="w-full h-full object-cover"
+                onLoadedMetadata={(e) => {
+                  const vid = e.currentTarget;
+                  vid.currentTime = Math.min(30, vid.duration * 0.1);
+                }}
+              />
+            )}
+            {isSelected && (
+              <div className="absolute inset-0 bg-primary/40 flex items-center justify-center">
+                <Play className="h-4 w-4 fill-current text-white" />
+              </div>
+            )}
+            <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] font-bold text-center leading-4">
+              {episode.episode_number}
             </div>
-          )}
-          <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] font-bold text-center leading-4">
-            {episode.episode_number}
+            {isCompleted && !isSelected && (
+              <div className="absolute top-0.5 right-0.5">
+                <Check className="h-4 w-4 text-primary drop-shadow" />
+              </div>
+            )}
           </div>
-          {isCompleted && !isSelected && (
-            <div className="absolute top-0.5 right-0.5">
-              <CheckCircle2 className="h-4 w-4 text-green-400 drop-shadow" />
+        ) : (
+          <div className="relative flex-shrink-0">
+            <div
+              className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold ${
+                isSelected
+                  ? "bg-primary-foreground/20 text-primary-foreground"
+                  : isCompleted
+                  ? "bg-primary/20 text-primary"
+                  : isInProgress
+                  ? "bg-primary/20 text-primary"
+                  : "bg-primary/10 text-primary"
+              }`}
+            >
+              {isCompleted && !isSelected ? (
+                <Check className="h-5 w-5 text-primary" />
+              ) : (
+                episode.episode_number
+              )}
             </div>
-          )}
-        </div>
-      ) : (
-        <div className="relative flex-shrink-0">
-          <div
-            className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold ${
-              isSelected
-                ? "bg-primary-foreground/20 text-primary-foreground"
-                : isCompleted
-                ? "bg-green-500/20 text-green-400"
-                : isInProgress
-                ? "bg-primary/20 text-primary"
-                : "bg-primary/10 text-primary"
-            }`}
-          >
-            {episode.episode_number}
           </div>
-          {isCompleted && !isSelected && (
-            <div className="absolute -bottom-1 -right-1 bg-background rounded-full">
-              <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
-            </div>
-          )}
-        </div>
-      )}
+        )}
 
-      <div className="flex-1 min-w-0">
-        <p className="font-medium truncate">
-          {episode.title || `${episode.episode_number}. epizód`}
-        </p>
-        <div className="flex gap-1 mt-1 items-center">
-          {isCompleted && !isSelected && (
-            <span className="text-[10px] font-semibold text-green-400 mr-0.5">Megnézve</span>
-          )}
-          {isInProgress && !isSelected && (
-            <span className="text-[10px] font-semibold text-primary mr-0.5">{progressPct}%</span>
-          )}
-          {hasSkipButtons && (
-            <FastForward className={`h-3 w-3 ${isSelected ? "text-primary-foreground/70" : "text-cyan-400"}`} />
-          )}
-          {hasBackup && (
-            <Server className={`h-3 w-3 ${isSelected ? "text-primary-foreground/70" : "text-green-400"}`} />
-          )}
-          {hasSubtitle && (
-            <Subtitles className={`h-3 w-3 ${isSelected ? "text-primary-foreground/70" : "text-yellow-400"}`} />
-          )}
-          {hasMultiQuality && (
-            <span className={`text-[10px] font-medium ${isSelected ? "text-primary-foreground/70" : "text-purple-400"}`}>
-              HD
-            </span>
-          )}
+        <div className="flex-1 min-w-0">
+          <p className="font-medium truncate">
+            {episode.title || `${episode.episode_number}. epizód`}
+          </p>
+          <div className="flex gap-1 mt-1 items-center">
+            {isCompleted && !isSelected && (
+              <span className="text-[10px] font-semibold text-primary mr-0.5">Megnézve</span>
+            )}
+            {isInProgress && !isSelected && (
+              <span className="text-[10px] font-semibold text-primary mr-0.5">{progressPct}%</span>
+            )}
+            {hasSkipButtons && (
+              <FastForward className={`h-3 w-3 ${isSelected ? "text-primary-foreground/70" : "text-cyan-400"}`} />
+            )}
+            {hasBackup && (
+              <Server className={`h-3 w-3 ${isSelected ? "text-primary-foreground/70" : "text-green-400"}`} />
+            )}
+            {hasSubtitle && (
+              <Subtitles className={`h-3 w-3 ${isSelected ? "text-primary-foreground/70" : "text-yellow-400"}`} />
+            )}
+            {hasMultiQuality && (
+              <span className={`text-[10px] font-medium ${isSelected ? "text-primary-foreground/70" : "text-purple-400"}`}>
+                HD
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      </button>
 
-      {!hasThumbnail && !showVideoThumb && (
-        <Play
-          className={`h-4 w-4 flex-shrink-0 ${
-            isSelected ? "fill-current" : isCompleted ? "text-green-400/60" : ""
+      {/* Individual mark/unmark button */}
+      {!isSelected && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleWatched(episode, !isCompleted);
+          }}
+          disabled={toggling}
+          title={isCompleted ? "Megnézetlen jelölés" : "Megnézettnek jelöl"}
+          className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+            isCompleted
+              ? "bg-primary text-primary-foreground hover:bg-primary/80"
+              : "bg-muted hover:bg-primary/20 text-muted-foreground hover:text-primary border border-border hover:border-primary/50"
           }`}
-        />
+        >
+          {toggling ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Check className="h-3.5 w-3.5" />
+          )}
+        </button>
       )}
-    </motion.button>
+    </motion.div>
   );
 };
 
@@ -190,6 +213,7 @@ const EpisodeList = ({ animeId, onSelectEpisode, selectedEpisodeId, onEpisodesLo
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [markingAll, setMarkingAll] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const { data: episodes, isLoading } = useQuery({
     queryKey: ["episodes", animeId],
@@ -237,6 +261,12 @@ const EpisodeList = ({ animeId, onSelectEpisode, selectedEpisodeId, onEpisodesLo
 
   const allWatched = episodes && episodes.length > 0 && episodes.every(ep => watchedMap?.get(ep.id)?.completed === true);
 
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["watch-history-map"] });
+    queryClient.invalidateQueries({ queryKey: ["watch-history"] });
+    queryClient.invalidateQueries({ queryKey: ["continue-watching"] });
+  };
+
   const handleMarkAllWatched = async () => {
     if (!user || !episodes || episodes.length === 0) return;
     setMarkingAll(true);
@@ -246,7 +276,6 @@ const EpisodeList = ({ animeId, onSelectEpisode, selectedEpisodeId, onEpisodesLo
         toast.info("Minden epizód már megnézettnek van jelölve.");
         return;
       }
-
       const rows = unwatched.map(ep => ({
         user_id: user.id,
         anime_id: animeId,
@@ -255,22 +284,53 @@ const EpisodeList = ({ animeId, onSelectEpisode, selectedEpisodeId, onEpisodesLo
         progress_seconds: 0,
         last_watched_at: new Date().toISOString(),
       }));
-
       const { error } = await supabase
         .from("watch_history")
         .upsert(rows, { onConflict: "user_id,episode_id" });
-
       if (error) throw error;
-
-      queryClient.invalidateQueries({ queryKey: ["watch-history-map"] });
-      queryClient.invalidateQueries({ queryKey: ["watch-history"] });
-      queryClient.invalidateQueries({ queryKey: ["continue-watching"] });
-
+      invalidate();
       toast.success(`${unwatched.length} epizód megnézettnek jelölve!`);
     } catch (e: any) {
       toast.error("Hiba történt: " + (e.message || "Ismeretlen hiba"));
     } finally {
       setMarkingAll(false);
+    }
+  };
+
+  const handleToggleWatched = async (episode: Episode, markAsWatched: boolean) => {
+    if (!user) return;
+    setTogglingId(episode.id);
+    try {
+      if (markAsWatched) {
+        const { error } = await supabase
+          .from("watch_history")
+          .upsert(
+            {
+              user_id: user.id,
+              anime_id: animeId,
+              episode_id: episode.id,
+              completed: true,
+              progress_seconds: 0,
+              last_watched_at: new Date().toISOString(),
+            },
+            { onConflict: "user_id,episode_id" }
+          );
+        if (error) throw error;
+        toast.success(`${episode.episode_number}. epizód megnézve ✓`);
+      } else {
+        const { error } = await supabase
+          .from("watch_history")
+          .update({ completed: false })
+          .eq("user_id", user.id)
+          .eq("episode_id", episode.id);
+        if (error) throw error;
+        toast.info(`${episode.episode_number}. epizód jelölés visszavonva`);
+      }
+      invalidate();
+    } catch (e: any) {
+      toast.error("Hiba: " + (e.message || "Ismeretlen hiba"));
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -295,7 +355,7 @@ const EpisodeList = ({ animeId, onSelectEpisode, selectedEpisodeId, onEpisodesLo
           <h2 className="text-2xl font-bold text-foreground">Epizódok</h2>
           {user && watchedCount > 0 && (
             <span className="text-sm text-muted-foreground">
-              <span className="text-green-400 font-semibold">{watchedCount}</span>/{episodes.length} megnézve
+              <span className="text-primary font-semibold">{watchedCount}</span>/{episodes.length} megnézve
             </span>
           )}
         </div>
@@ -303,7 +363,7 @@ const EpisodeList = ({ animeId, onSelectEpisode, selectedEpisodeId, onEpisodesLo
           <Button
             variant="outline"
             size="sm"
-            className="gap-2 border-green-700/50 text-green-400 hover:bg-green-950/60 hover:text-green-300"
+            className="gap-2 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
             onClick={handleMarkAllWatched}
             disabled={markingAll}
           >
@@ -316,7 +376,7 @@ const EpisodeList = ({ animeId, onSelectEpisode, selectedEpisodeId, onEpisodesLo
           </Button>
         )}
         {user && allWatched && (
-          <span className="flex items-center gap-1.5 text-sm font-medium text-green-400">
+          <span className="flex items-center gap-1.5 text-sm font-medium text-primary">
             <CheckCheck className="h-4 w-4" />
             Mind megnézve
           </span>
@@ -334,7 +394,6 @@ const EpisodeList = ({ animeId, onSelectEpisode, selectedEpisodeId, onEpisodesLo
             watchData.progress_seconds > 0 &&
             watchData.duration_seconds != null &&
             watchData.duration_seconds > 0;
-
           const progressPct =
             isInProgress && watchData.duration_seconds
               ? Math.min(100, Math.round((watchData.progress_seconds / watchData.duration_seconds) * 100))
@@ -350,6 +409,8 @@ const EpisodeList = ({ animeId, onSelectEpisode, selectedEpisodeId, onEpisodesLo
               isInProgress={!!isInProgress}
               progressPct={progressPct}
               onSelectEpisode={onSelectEpisode}
+              onToggleWatched={handleToggleWatched}
+              toggling={togglingId === episode.id}
             />
           );
         })}
