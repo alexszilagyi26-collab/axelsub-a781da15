@@ -428,7 +428,9 @@ export type Database = {
       }
       profiles: {
         Row: {
+          accent_color: string | null
           avatar_url: string | null
+          background_url: string | null
           bio: string | null
           created_at: string | null
           display_name: string | null
@@ -438,7 +440,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          accent_color?: string | null
           avatar_url?: string | null
+          background_url?: string | null
           bio?: string | null
           created_at?: string | null
           display_name?: string | null
@@ -448,7 +452,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          accent_color?: string | null
           avatar_url?: string | null
+          background_url?: string | null
           bio?: string | null
           created_at?: string | null
           display_name?: string | null
