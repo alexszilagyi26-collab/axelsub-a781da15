@@ -50,15 +50,12 @@ export const useUpdateProfile = () => {
     }) => {
       if (!user) throw new Error("Not authenticated");
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("profiles")
         .update(updates)
-        .eq("user_id", user.id)
-        .select()
-        .single();
+        .eq("user_id", user.id);
 
       if (error) throw error;
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
